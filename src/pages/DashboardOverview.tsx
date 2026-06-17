@@ -1,12 +1,14 @@
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { enrichMangel, enrichBericht } from '@/lib/enrich';
 import type { EnrichedMangel } from '@/types/enriched';
+import type { Baustelle } from '@/types/app';
 import { APP_IDS, LOOKUP_OPTIONS } from '@/types/app';
 import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
 import { formatDate, lookupKey } from '@/lib/formatters';
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import { IconAlertCircle, IconTool, IconRefresh, IconCheck, IconAlertTriangle, IconPlus, IconFileText, IconClipboardList } from '@tabler/icons-react';
+import { IconAlertCircle, IconTool, IconRefresh, IconCheck, IconAlertTriangle, IconPlus, IconFileText, IconClipboardList, IconX, IconChevronRight, IconMapPin, IconUser } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { StatCard, StatCardRow } from '@/components/StatCard';
 import { DashboardGrid } from '@/components/DashboardGrid';
@@ -53,6 +55,9 @@ export default function DashboardOverview() {
   // Filter state
   const [baustelleFilter, setBaustelleFilter] = useState<string | null>(null);
 
+  // Detail-Panel: angeklickte Baustelle
+  const [selectedBaustelle, setSelectedBaustelle] = useState<Baustelle | null>(null);
+
   // Overlay stack for details
   const overlay = useRecordOverlayStack<{ type: 'mangel' | 'baustelle' | 'bericht'; id: string }>();
 
@@ -90,6 +95,12 @@ export default function DashboardOverview() {
     if (!baustelleFilter) return enrichedMangel;
     return enrichedMangel.filter(m => extractRecordId(m.fields.baustelle) === baustelleFilter);
   }, [enrichedMangel, baustelleFilter]);
+
+  // Mängel für das Detail-Panel der ausgewählten Baustelle
+  const panelMängel = useMemo(() => {
+    if (!selectedBaustelle) return [];
+    return enrichedMangel.filter(m => extractRecordId(m.fields.baustelle) === selectedBaustelle.record_id);
+  }, [enrichedMangel, selectedBaustelle]);
 
   // Kanban cards
   const kanbanCards = useMemo<KanbanCard[]>(() => filteredMängel.map(m => {
@@ -273,34 +284,50 @@ export default function DashboardOverview() {
     </>
   );
 
-  // Baustelle filter chips
-  const filterChips = baustelle.length > 1 ? (
+  // Baustellen-Kacheln: klickbar → öffnet Detail-Panel rechts
+  const baustellenKacheln = baustelle.length > 0 ? (
     <div className="flex flex-wrap gap-2 mb-3">
       <button
         type="button"
-        onClick={() => setBaustelleFilter(null)}
+        onClick={() => { setBaustelleFilter(null); setSelectedBaustelle(null); }}
         className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
           baustelleFilter === null
             ? 'bg-primary text-primary-foreground border-primary'
             : 'bg-card border-border text-muted-foreground hover:bg-muted'
         }`}
       >
-        Alle Baustellen
+        Alle
       </button>
-      {baustelle.map(b => (
-        <button
-          key={b.record_id}
-          type="button"
-          onClick={() => setBaustelleFilter(b.record_id === baustelleFilter ? null : b.record_id)}
-          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
-            baustelleFilter === b.record_id
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-card border-border text-muted-foreground hover:bg-muted'
-          }`}
-        >
-          {b.fields.name ?? b.record_id}
-        </button>
-      ))}
+      {baustelle.map(b => {
+        const mangelCount = enrichedMangel.filter(m => extractRecordId(m.fields.baustelle) === b.record_id).length;
+        const offenCount = enrichedMangel.filter(m => extractRecordId(m.fields.baustelle) === b.record_id && lookupKey(m.fields.status) !== 'behoben').length;
+        const isActive = baustelleFilter === b.record_id;
+        return (
+          <button
+            key={b.record_id}
+            type="button"
+            onClick={() => {
+              setBaustelleFilter(b.record_id === baustelleFilter ? null : b.record_id);
+              setSelectedBaustelle(selectedBaustelle?.record_id === b.record_id ? null : b);
+            }}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+              isActive
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-card border-border text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <span className="truncate max-w-[12rem]">{b.fields.name ?? b.record_id}</span>
+            {mangelCount > 0 && (
+              <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-4 px-1 rounded-full text-[10px] font-semibold ${
+                offenCount > 0 ? 'bg-destructive/20 text-destructive' : 'bg-success/20 text-success'
+              } ${isActive ? 'bg-white/20 text-inherit' : ''}`}>
+                {mangelCount}
+              </span>
+            )}
+            <IconChevronRight size={10} className="shrink-0 opacity-60" />
+          </button>
+        );
+      })}
     </div>
   ) : null;
 
@@ -343,7 +370,7 @@ export default function DashboardOverview() {
         setMangelDialogOpen(true);
       }}
     >
-      {filterChips}
+      {baustellenKacheln}
     </KanbanWidget>
   );
 
@@ -469,6 +496,121 @@ export default function DashboardOverview() {
           </>
         )}
       </RecordOverlay>
+
+      {/* Baustellen Detail-Panel */}
+      {selectedBaustelle && createPortal(
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setSelectedBaustelle(null)}
+          aria-hidden="true"
+        >
+          <div
+            className="absolute right-0 top-0 h-full w-full max-w-sm bg-card border-l border-border shadow-xl flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Panel Header */}
+            <div className="flex items-start justify-between gap-3 px-4 py-4 border-b border-border">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-foreground truncate">{selectedBaustelle.fields.name ?? 'Baustelle'}</h2>
+                {(selectedBaustelle.fields.adresse || selectedBaustelle.fields.bauleiter) && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    {selectedBaustelle.fields.adresse && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <IconMapPin size={11} className="shrink-0" />
+                        {selectedBaustelle.fields.adresse}
+                      </span>
+                    )}
+                    {selectedBaustelle.fields.bauleiter && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <IconUser size={11} className="shrink-0" />
+                        {selectedBaustelle.fields.bauleiter}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {selectedBaustelle.fields.status && (
+                  <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    {selectedBaustelle.fields.status.label}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedBaustelle(null)}
+                className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg hover:bg-muted transition-colors"
+                aria-label="Panel schließen"
+              >
+                <IconX size={16} />
+              </button>
+            </div>
+
+            {/* Mängel-Liste */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="px-4 py-3 flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Mängel ({panelMängel.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMangelDefaults({ baustelle: createRecordUrl(APP_IDS.BAUSTELLE, selectedBaustelle.record_id) });
+                    setEditMangel(null);
+                    setMangelDialogOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                >
+                  <IconPlus size={12} className="shrink-0" />
+                  Mangel erfassen
+                </button>
+              </div>
+
+              {panelMängel.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <IconCheck size={32} className="mx-auto mb-2 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">Keine Mängel für diese Baustelle.</p>
+                </div>
+              ) : (
+                <ul className="px-2 pb-4 space-y-1">
+                  {panelMängel.map(m => {
+                    const statusKey = lookupKey(m.fields.status);
+                    const isOverdue = m.fields.frist && m.fields.frist < today && statusKey !== 'behoben';
+                    return (
+                      <li key={m.record_id}>
+                        <button
+                          type="button"
+                          onClick={() => overlay.replace({ type: 'mangel', id: m.record_id })}
+                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-muted/60 transition-colors"
+                        >
+                          <div className="flex items-start gap-2 min-w-0">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{m.fields.titel ?? 'Ohne Titel'}</p>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                <span className={`text-xs ${
+                                  isOverdue ? 'text-destructive font-medium' :
+                                  statusKey === 'behoben' ? 'text-green-600' :
+                                  statusKey === 'in_bearbeitung' ? 'text-primary' :
+                                  'text-muted-foreground'
+                                }`}>
+                                  {isOverdue ? 'Überfällig' : (m.fields.status?.label ?? '—')}
+                                </span>
+                                {m.fields.frist && (
+                                  <span className="text-xs text-muted-foreground">{formatDate(m.fields.frist)}</span>
+                                )}
+                              </div>
+                            </div>
+                            <IconChevronRight size={14} className="shrink-0 text-muted-foreground mt-1" />
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Dialogs */}
       <MangelDialog
