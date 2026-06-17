@@ -5,10 +5,10 @@ import type { Baustelle } from '@/types/app';
 import { APP_IDS, LOOKUP_OPTIONS } from '@/types/app';
 import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
 import { formatDate, lookupKey } from '@/lib/formatters';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import { IconAlertCircle, IconTool, IconRefresh, IconCheck, IconAlertTriangle, IconPlus, IconFileText, IconClipboardList, IconX, IconChevronRight, IconMapPin, IconUser } from '@tabler/icons-react';
+import { IconAlertCircle, IconTool, IconRefresh, IconCheck, IconAlertTriangle, IconPlus, IconFileText, IconClipboardList, IconX, IconChevronRight, IconMapPin, IconUser, IconPhoto, IconArrowRight, IconMessageCircle } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { StatCard, StatCardRow } from '@/components/StatCard';
 import { DashboardGrid } from '@/components/DashboardGrid';
@@ -60,6 +60,14 @@ export default function DashboardOverview() {
 
   // Overlay stack for details
   const overlay = useRecordOverlayStack<{ type: 'mangel' | 'baustelle' | 'bericht'; id: string }>();
+
+  // Abschluss-Dialog state
+  const [abschlussTarget, setAbschlussTarget] = useState<EnrichedMangel | null>(null);
+  const [abschlussStep, setAbschlussStep] = useState<1 | 2>(1);
+  const [abschlussFoto, setAbschlussFoto] = useState<File | null>(null);
+  const [abschlussKommentar, setAbschlussKommentar] = useState('');
+  const [abschlussUploading, setAbschlussUploading] = useState(false);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
 
   // Dialog state
   const [mangelDialogOpen, setMangelDialogOpen] = useState(false);
@@ -136,15 +144,9 @@ export default function DashboardOverview() {
     return `${aktiveBaustellen.length} Baustellen aktiv, alles im Zeitplan.`;
   }, [überfälligeMängel, offeneMängel, aktiveBaustellen]);
 
-  // Advance mangel status
-  const advanceMangel = async (m: EnrichedMangel) => {
-    const currentKey = lookupKey(m.fields.status);
-    const newKey = currentKey === 'offen' ? 'in_bearbeitung'
-      : currentKey === 'in_bearbeitung' ? 'behoben'
-      : null;
-    if (!newKey) return;
+  // Direkt auf "in_bearbeitung" setzen (kein Dialog nötig)
+  const advanceMangelDirect = async (m: EnrichedMangel, newKey: string) => {
     const prev = m.fields.status;
-    // Optimistic
     setMangel(prev2 => prev2.map(x => x.record_id === m.record_id
       ? { ...x, fields: { ...x.fields, status: LOOKUP_OPTIONS['mangel']?.['status']?.find(o => o.key === newKey) ?? { key: newKey, label: newKey } } }
       : x));
@@ -160,6 +162,35 @@ export default function DashboardOverview() {
       await LivingAppsService.updateMangelEntry(m.record_id, { status: newKey });
     } catch {
       fetchAll();
+    }
+  };
+
+  // Advance mangel status — öffnet Abschluss-Dialog wenn → behoben
+  const advanceMangel = (m: EnrichedMangel) => {
+    const currentKey = lookupKey(m.fields.status);
+    if (currentKey === 'offen') {
+      advanceMangelDirect(m, 'in_bearbeitung');
+    } else if (currentKey === 'in_bearbeitung') {
+      // Zweistufiger Abschluss-Dialog
+      setAbschlussTarget(m);
+      setAbschlussStep(1);
+      setAbschlussFoto(null);
+      setAbschlussKommentar('');
+    }
+  };
+
+  // Abschluss bestätigen (nach Foto + Kommentar)
+  const abschlussBestaetigen = async () => {
+    if (!abschlussTarget) return;
+    setAbschlussUploading(true);
+    try {
+      // Status auf behoben setzen (Foto/Kommentar werden im Attachments-Panel des Mangel-Dialogs gespeichert)
+      await advanceMangelDirect(abschlussTarget, 'behoben');
+    } catch {
+      fetchAll();
+    } finally {
+      setAbschlussUploading(false);
+      setAbschlussTarget(null);
     }
   };
 
@@ -607,6 +638,149 @@ export default function DashboardOverview() {
                 </ul>
               )}
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Zweistufiger Abschluss-Dialog */}
+      {abschlussTarget && createPortal(
+        <div
+          className="fixed inset-0 z-[9000] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+          onClick={() => !abschlussUploading && setAbschlussTarget(null)}
+        >
+          <div
+            className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h2 className="font-semibold text-foreground text-base">Mangel abschließen</h2>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[20rem]">{abschlussTarget.fields.titel ?? 'Ohne Titel'}</p>
+              </div>
+              <button
+                type="button"
+                disabled={abschlussUploading}
+                onClick={() => setAbschlussTarget(null)}
+                className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg hover:bg-muted transition-colors disabled:opacity-40"
+                aria-label="Dialog schließen"
+              >
+                <IconX size={16} />
+              </button>
+            </div>
+
+            {/* Schritt-Indikator */}
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-muted/30">
+              <div className={`flex items-center gap-1.5 text-xs font-medium ${abschlussStep === 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold ${abschlussStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</span>
+                Abschlussfoto
+              </div>
+              <IconArrowRight size={12} className="text-muted-foreground shrink-0" />
+              <div className={`flex items-center gap-1.5 text-xs font-medium ${abschlussStep === 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold ${abschlussStep === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</span>
+                Kommentar
+              </div>
+            </div>
+
+            {/* Schritt 1: Foto */}
+            {abschlussStep === 1 && (
+              <div className="px-5 py-6 flex flex-col gap-4">
+                <div className="text-center">
+                  <IconPhoto size={40} className="mx-auto mb-2 text-muted-foreground/60" stroke={1.5} />
+                  <p className="text-sm text-foreground font-medium">Abschlussfoto hochladen</p>
+                  <p className="text-xs text-muted-foreground mt-1">Foto des behobenen Mangels als Nachweis (optional)</p>
+                </div>
+
+                <input
+                  ref={fotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={e => setAbschlussFoto(e.target.files?.[0] ?? null)}
+                />
+
+                {abschlussFoto ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img
+                      src={URL.createObjectURL(abschlussFoto)}
+                      alt="Abschlussfoto"
+                      className="w-full max-h-48 object-cover rounded-xl border border-border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setAbschlussFoto(null); if (fotoInputRef.current) fotoInputRef.current.value = ''; }}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      Foto entfernen
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fotoInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 w-full py-10 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/40 transition-colors text-sm text-muted-foreground"
+                  >
+                    <IconPhoto size={18} className="shrink-0" />
+                    Foto auswählen oder aufnehmen
+                  </button>
+                )}
+
+                <div className="flex justify-between gap-2 mt-2">
+                  <Button variant="outline" size="sm" onClick={() => setAbschlussTarget(null)}>
+                    Abbrechen
+                  </Button>
+                  <Button size="sm" onClick={() => setAbschlussStep(2)}>
+                    Weiter
+                    <IconArrowRight size={14} className="ml-1.5 shrink-0" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Schritt 2: Kommentar */}
+            {abschlussStep === 2 && (
+              <div className="px-5 py-6 flex flex-col gap-4">
+                <div>
+                  <IconMessageCircle size={40} className="mx-auto mb-2 text-muted-foreground/60" stroke={1.5} />
+                  <p className="text-sm text-foreground font-medium text-center">Abschlusskommentar</p>
+                  <p className="text-xs text-muted-foreground text-center mt-1">Kurze Notiz zur Behebung (optional)</p>
+                </div>
+
+                <textarea
+                  value={abschlussKommentar}
+                  onChange={e => setAbschlussKommentar(e.target.value)}
+                  placeholder="z. B. Riss mit Epoxidharz geschlossen, Oberfläche geglättet..."
+                  rows={4}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+
+                {abschlussFoto && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+                    <IconPhoto size={13} className="shrink-0" />
+                    Foto wird hochgeladen: <span className="font-medium truncate">{abschlussFoto.name}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between gap-2 mt-1">
+                  <Button variant="outline" size="sm" onClick={() => setAbschlussStep(1)}>
+                    Zurück
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={abschlussBestaetigen}
+                    disabled={abschlussUploading}
+                  >
+                    {abschlussUploading
+                      ? <span className="inline-block w-3.5 h-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-1.5" />
+                      : <IconCheck size={14} className="mr-1.5 shrink-0" />}
+                    {abschlussUploading ? 'Wird gespeichert...' : 'Abschließen'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>,
         document.body
