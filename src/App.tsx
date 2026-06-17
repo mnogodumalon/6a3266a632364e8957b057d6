@@ -19,6 +19,8 @@ import PublicFormBericht from '@/pages/public/PublicForm_Bericht';
 // <public:imports>
 // </public:imports>
 // <custom:imports>
+const BegehungPage = lazy(() => import('@/pages/intents/BegehungPage'));
+const MaengelabschlussPage = lazy(() => import('@/pages/intents/MaengelabschlussPage'));
 // </custom:imports>
 
 export default function App() {
@@ -43,6 +45,8 @@ export default function App() {
                 <Route path="bericht/:id" element={<BerichtDetailPage />} />
                 <Route path="admin" element={<AdminPage />} />
                 {/* <custom:routes> */}
+                <Route path="intents/begehung" element={<Suspense fallback={null}><BegehungPage /></Suspense>} />
+                <Route path="intents/maengelabschluss" element={<Suspense fallback={null}><MaengelabschlussPage /></Suspense>} />
                 {/* </custom:routes> */}
               </Route>
             </Routes>
