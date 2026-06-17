@@ -157,7 +157,7 @@ export default function PublicFormBaustelle() {
                 role="radio"
                 aria-checked={lookupKey(fields.status) === 'in_planung'}
                 onClick={() => setFields(f => ({ ...f, status: (lookupKey(f.status) === 'in_planung' ? undefined : 'in_planung') as any }))}
-                className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   lookupKey(fields.status) === 'in_planung'
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-background text-foreground border-input hover:bg-accent'
@@ -170,7 +170,7 @@ export default function PublicFormBaustelle() {
                 role="radio"
                 aria-checked={lookupKey(fields.status) === 'aktiv'}
                 onClick={() => setFields(f => ({ ...f, status: (lookupKey(f.status) === 'aktiv' ? undefined : 'aktiv') as any }))}
-                className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   lookupKey(fields.status) === 'aktiv'
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-background text-foreground border-input hover:bg-accent'
@@ -183,7 +183,7 @@ export default function PublicFormBaustelle() {
                 role="radio"
                 aria-checked={lookupKey(fields.status) === 'abgeschlossen'}
                 onClick={() => setFields(f => ({ ...f, status: (lookupKey(f.status) === 'abgeschlossen' ? undefined : 'abgeschlossen') as any }))}
-                className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   lookupKey(fields.status) === 'abgeschlossen'
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-background text-foreground border-input hover:bg-accent'

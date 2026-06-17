@@ -54,7 +54,7 @@ export function HeroBanner({ children, action, icon, tone = 'destructive', class
       <button
         type="button"
         onClick={action.onClick}
-        className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors max-sm:w-full ${TONE_BUTTON[tone]}`}
+        className={`shrink-0 inline-flex items-center justify-center min-h-9 max-sm:min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors max-sm:w-full ${TONE_BUTTON[tone]}`}
       >
         {action.label}
       </button>

@@ -190,13 +190,13 @@ export function ActionsDrawer({ open, onClose }: ActionsDrawerProps) {
   return createPortal(
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150"
+        className="fixed inset-0 z-[var(--z-overlay)] bg-black/40 backdrop-blur-sm animate-in fade-in duration-150"
         onClick={onClose}
       />
       <aside
         role="dialog"
         aria-label={TITLE}
-        className="fixed top-0 right-0 z-50 h-full w-full sm:max-w-xl bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+        className="fixed top-0 right-0 z-[var(--z-overlay)] h-full w-full sm:max-w-xl bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
       >
         <header className="flex items-center gap-3 px-6 py-4 border-b">
           <div className="flex-1 min-w-0">

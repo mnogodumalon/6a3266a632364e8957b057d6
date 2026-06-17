@@ -360,7 +360,7 @@ export function KanbanWidget(props: KanbanWidgetProps) {
   // the drop slot.
   const dragGhost = dnd.draggingMode === 'move' && draggedCard
     ? createPortal(
-        <div ref={dnd.ghostRef} className="pointer-events-none fixed left-0 top-0 z-[100] will-change-transform" aria-hidden>
+        <div ref={dnd.ghostRef} className="pointer-events-none fixed left-0 top-0 z-[var(--z-drag)] will-change-transform" aria-hidden>
           <div className={`max-w-[240px] rounded-md border-l-4 bg-card px-2 py-1.5 shadow-xl ring-1 ring-black/10 ${TONE_ACCENT[draggedCard.tone ?? 'default']}`}>
             <span className="block truncate text-xs font-semibold text-foreground">{draggedCard.title}</span>
           </div>
@@ -452,7 +452,7 @@ export function KanbanWidget(props: KanbanWidgetProps) {
                     if (isFallback) return;   // not a drop target
                     if (el) colRefs.current.set(col.key, el); else colRefs.current.delete(col.key);
                   }}
-                  className={`flex min-h-[200px] snap-start flex-col ${narrow ? 'overflow-hidden rounded-2xl border border-border bg-card shadow-sm' : 'border-l border-border first:border-l-0'} ${isTarget ? 'ring-2 ring-inset ring-primary/60' : ''} ${columnClassName?.(col) ?? ''}`}
+                  className={`flex min-h-[200px] max-sm:min-h-[7rem] snap-start flex-col ${narrow ? 'overflow-hidden rounded-2xl border border-border bg-card shadow-sm' : 'border-l border-border first:border-l-0'} ${isTarget ? 'ring-2 ring-inset ring-primary/60' : ''} ${columnClassName?.(col) ?? ''}`}
                 >
                   {/* Column header: collapse toggle + (tone dot + label + count
                       badge). The toggle belongs to the WIDGET and stays even
@@ -464,9 +464,9 @@ export function KanbanWidget(props: KanbanWidgetProps) {
                       onClick={() => { if (dnd.consumeClick()) return; toggleCollapsed(col.key); }}
                       aria-expanded={true}
                       aria-label={`Spalte ${columnAriaLabel(col)} einklappen`}
-                      className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+                      className="shrink-0 rounded p-0.5 max-sm:p-2 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                     >
-                      <IconChevronsLeft className="h-3.5 w-3.5" />
+                      <IconChevronsLeft className="h-3.5 w-3.5 max-sm:h-5 max-sm:w-5" />
                     </button>
                     <div className="min-w-0 flex-1">
                       {renderColumnHeader && !isFallback ? renderColumnHeader(col) : (
@@ -495,9 +495,9 @@ export function KanbanWidget(props: KanbanWidgetProps) {
                         type="button"
                         onClick={() => { if (dnd.consumeClick()) return; onAddCard(col.key); }}
                         aria-label={`Neue Karte — ${columnAriaLabel(col)}`}
-                        className="mt-auto flex items-center justify-center gap-1 rounded-md border border-dashed border-border py-1.5 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+                        className="mt-auto flex items-center justify-center gap-1 rounded-md border border-dashed border-border py-1.5 max-sm:py-3 max-sm:min-h-11 text-[11px] max-sm:text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
                       >
-                        <IconPlus className="h-3.5 w-3.5" />Karte
+                        <IconPlus className="h-3.5 w-3.5 max-sm:h-4 max-sm:w-4" />Karte
                       </button>
                     )}
                   </div>
@@ -531,10 +531,10 @@ function CardView({ card, dnd, geom, onCardClick, renderCard, narrow = false }: 
       type="button"
       onClick={(e) => { e.stopPropagation(); if (dnd.consumeClick()) return; onCardClick?.(card); }}
       {...cardDragProps(card, dnd, geom)}
-      className={`flex flex-col gap-0.5 rounded-md border-l-4 px-2 py-1.5 text-left min-w-0 ${TONE_ACCENT[card.tone ?? 'default']} ${dnd.draggingId === card.id ? 'opacity-40' : ''} hover:shadow-sm transition-shadow`}
+      className={`flex flex-col border-l-4 text-left min-w-0 ${narrow ? 'gap-1 rounded-xl px-3 py-3 min-h-[56px] justify-center' : 'gap-0.5 rounded-md px-2 py-1.5'} ${TONE_ACCENT[card.tone ?? 'default']} ${dnd.draggingId === card.id ? 'opacity-40' : ''} hover:shadow-sm transition-shadow`}
     >
-      <span className={`truncate font-semibold text-foreground ${narrow ? 'text-[13px]' : 'text-xs'}`}>{card.title}</span>
-      {card.subtitle != null && card.subtitle !== '' && <span className={`truncate text-muted-foreground ${narrow ? 'text-xs' : 'text-[11px]'}`}>{card.subtitle}</span>}
+      <span className={`truncate font-semibold text-foreground ${narrow ? 'text-[15px]' : 'text-xs'}`}>{card.title}</span>
+      {card.subtitle != null && card.subtitle !== '' && <span className={`truncate text-muted-foreground ${narrow ? 'text-[13px]' : 'text-[11px]'}`}>{card.subtitle}</span>}
     </button>
   );
 }

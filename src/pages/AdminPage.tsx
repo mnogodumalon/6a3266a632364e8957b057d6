@@ -1,13 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import type { Baustelle, Mangel, Bericht } from '@/types/app';
+import type { Mangel, Bericht, Baustelle } from '@/types/app';
 import { LivingAppsService, extractRecordId, cleanFieldsForApi } from '@/services/livingAppsService';
-import { BaustelleDialog } from '@/components/dialogs/BaustelleDialog';
-import { BaustelleViewDialog } from '@/components/dialogs/BaustelleViewDialog';
 import { MangelDialog } from '@/components/dialogs/MangelDialog';
 import { MangelViewDialog } from '@/components/dialogs/MangelViewDialog';
 import { BerichtDialog } from '@/components/dialogs/BerichtDialog';
 import { BerichtViewDialog } from '@/components/dialogs/BerichtViewDialog';
+import { BaustelleDialog } from '@/components/dialogs/BaustelleDialog';
+import { BaustelleViewDialog } from '@/components/dialogs/BaustelleViewDialog';
 import { BulkEditDialog } from '@/components/dialogs/BulkEditDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageShell } from '@/components/PageShell';
@@ -34,13 +34,6 @@ function fmtDate(d?: string) {
 }
 
 // Field metadata per entity for bulk edit and column filters
-const BAUSTELLE_FIELDS = [
-  { key: 'name', label: 'Name', type: 'string/text' },
-  { key: 'adresse', label: 'Adresse', type: 'string/text' },
-  { key: 'bauleiter', label: 'Bauleiter', type: 'string/text' },
-  { key: 'status', label: 'Status', type: 'lookup/select', options: [{ key: 'in_planung', label: 'In Planung' }, { key: 'aktiv', label: 'Aktiv' }, { key: 'abgeschlossen', label: 'Abgeschlossen' }] },
-  { key: 'titelfoto', label: 'Titelfoto', type: 'file' },
-];
 const MANGEL_FIELDS = [
   { key: 'titel', label: 'Titel', type: 'string/text' },
   { key: 'beschreibung', label: 'Beschreibung', type: 'string/textarea' },
@@ -55,11 +48,18 @@ const BERICHT_FIELDS = [
   { key: 'dokument', label: 'Dokument (PDF)', type: 'file' },
   { key: 'baustelle', label: 'Baustelle', type: 'applookup/select', targetEntity: 'baustelle', targetAppId: 'BAUSTELLE', displayField: 'name' },
 ];
+const BAUSTELLE_FIELDS = [
+  { key: 'name', label: 'Name', type: 'string/text' },
+  { key: 'adresse', label: 'Adresse', type: 'string/text' },
+  { key: 'bauleiter', label: 'Bauleiter', type: 'string/text' },
+  { key: 'status', label: 'Status', type: 'lookup/select', options: [{ key: 'in_planung', label: 'In Planung' }, { key: 'aktiv', label: 'Aktiv' }, { key: 'abgeschlossen', label: 'Abgeschlossen' }] },
+  { key: 'titelfoto', label: 'Titelfoto', type: 'file' },
+];
 
 const ENTITY_TABS = [
-  { key: 'baustelle', label: 'Baustelle', pascal: 'Baustelle' },
   { key: 'mangel', label: 'Mangel', pascal: 'Mangel' },
   { key: 'bericht', label: 'Bericht', pascal: 'Bericht' },
+  { key: 'baustelle', label: 'Baustelle', pascal: 'Baustelle' },
 ] as const;
 
 type EntityKey = typeof ENTITY_TABS[number]['key'];
@@ -68,16 +68,16 @@ export default function AdminPage() {
   const data = useDashboardData();
   const { loading, error, fetchAll } = data;
 
-  const [activeTab, setActiveTab] = useState<EntityKey>('baustelle');
+  const [activeTab, setActiveTab] = useState<EntityKey>('mangel');
   const [selectedIds, setSelectedIds] = useState<Record<EntityKey, Set<string>>>(() => ({
-    'baustelle': new Set(),
     'mangel': new Set(),
     'bericht': new Set(),
+    'baustelle': new Set(),
   }));
   const [filters, setFilters] = useState<Record<EntityKey, Record<string, string>>>(() => ({
-    'baustelle': {},
     'mangel': {},
     'bericht': {},
+    'baustelle': {},
   }));
   const [showFilters, setShowFilters] = useState(false);
   const [dialogState, setDialogState] = useState<{ entity: EntityKey; record: any } | null>(null);
@@ -92,9 +92,9 @@ export default function AdminPage() {
 
   const getRecords = useCallback((entity: EntityKey) => {
     switch (entity) {
-      case 'baustelle': return (data as any).baustelle as Baustelle[] ?? [];
       case 'mangel': return (data as any).mangel as Mangel[] ?? [];
       case 'bericht': return (data as any).bericht as Bericht[] ?? [];
+      case 'baustelle': return (data as any).baustelle as Baustelle[] ?? [];
       default: return [];
     }
   }, [data]);
@@ -131,9 +131,9 @@ export default function AdminPage() {
 
   const getFieldMeta = useCallback((entity: EntityKey) => {
     switch (entity) {
-      case 'baustelle': return BAUSTELLE_FIELDS;
       case 'mangel': return MANGEL_FIELDS;
       case 'bericht': return BERICHT_FIELDS;
+      case 'baustelle': return BAUSTELLE_FIELDS;
       default: return [];
     }
   }, []);
@@ -228,11 +228,6 @@ export default function AdminPage() {
 
   const getServiceMethods = useCallback((entity: EntityKey) => {
     switch (entity) {
-      case 'baustelle': return {
-        create: (fields: any) => LivingAppsService.createBaustelleEntry(fields),
-        update: (id: string, fields: any) => LivingAppsService.updateBaustelleEntry(id, fields),
-        remove: (id: string) => LivingAppsService.deleteBaustelleEntry(id),
-      };
       case 'mangel': return {
         create: (fields: any) => LivingAppsService.createMangelEntry(fields),
         update: (id: string, fields: any) => LivingAppsService.updateMangelEntry(id, fields),
@@ -242,6 +237,11 @@ export default function AdminPage() {
         create: (fields: any) => LivingAppsService.createBerichtEntry(fields),
         update: (id: string, fields: any) => LivingAppsService.updateBerichtEntry(id, fields),
         remove: (id: string) => LivingAppsService.deleteBerichtEntry(id),
+      };
+      case 'baustelle': return {
+        create: (fields: any) => LivingAppsService.createBaustelleEntry(fields),
+        update: (id: string, fields: any) => LivingAppsService.updateBaustelleEntry(id, fields),
+        remove: (id: string) => LivingAppsService.deleteBaustelleEntry(id),
       };
       default: return null;
     }
@@ -583,16 +583,6 @@ export default function AdminPage() {
         </Table>
       </div>
 
-      {(createEntity === 'baustelle' || dialogState?.entity === 'baustelle') && (
-        <BaustelleDialog
-          open={createEntity === 'baustelle' || dialogState?.entity === 'baustelle'}
-          onClose={() => { setCreateEntity(null); setDialogState(null); }}
-          onSubmit={dialogState?.entity === 'baustelle' ? handleUpdate : (fields: any) => handleCreate('baustelle', fields)}
-          defaultValues={dialogState?.entity === 'baustelle' ? dialogState.record?.fields : undefined}
-          enablePhotoScan={AI_PHOTO_SCAN['Baustelle']}
-          enablePhotoLocation={AI_PHOTO_LOCATION['Baustelle']}
-        />
-      )}
       {(createEntity === 'mangel' || dialogState?.entity === 'mangel') && (
         <MangelDialog
           open={createEntity === 'mangel' || dialogState?.entity === 'mangel'}
@@ -615,12 +605,14 @@ export default function AdminPage() {
           enablePhotoLocation={AI_PHOTO_LOCATION['Bericht']}
         />
       )}
-      {viewState?.entity === 'baustelle' && (
-        <BaustelleViewDialog
-          open={viewState?.entity === 'baustelle'}
-          onClose={() => setViewState(null)}
-          record={viewState?.record}
-          onEdit={(r: any) => { setViewState(null); setDialogState({ entity: 'baustelle', record: r }); }}
+      {(createEntity === 'baustelle' || dialogState?.entity === 'baustelle') && (
+        <BaustelleDialog
+          open={createEntity === 'baustelle' || dialogState?.entity === 'baustelle'}
+          onClose={() => { setCreateEntity(null); setDialogState(null); }}
+          onSubmit={dialogState?.entity === 'baustelle' ? handleUpdate : (fields: any) => handleCreate('baustelle', fields)}
+          defaultValues={dialogState?.entity === 'baustelle' ? dialogState.record?.fields : undefined}
+          enablePhotoScan={AI_PHOTO_SCAN['Baustelle']}
+          enablePhotoLocation={AI_PHOTO_LOCATION['Baustelle']}
         />
       )}
       {viewState?.entity === 'mangel' && (
@@ -639,6 +631,14 @@ export default function AdminPage() {
           record={viewState?.record}
           onEdit={(r: any) => { setViewState(null); setDialogState({ entity: 'bericht', record: r }); }}
           baustelleList={(data as any).baustelle ?? []}
+        />
+      )}
+      {viewState?.entity === 'baustelle' && (
+        <BaustelleViewDialog
+          open={viewState?.entity === 'baustelle'}
+          onClose={() => setViewState(null)}
+          record={viewState?.record}
+          onEdit={(r: any) => { setViewState(null); setDialogState({ entity: 'baustelle', record: r }); }}
         />
       )}
 

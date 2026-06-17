@@ -2,20 +2,6 @@
   "version": 1,
   "forms": [
     {
-      "entity": "baustelle",
-      "app_id": "6a326689292e299748fee5d3",
-      "path": "/rest/apps/6a326689292e299748fee5d3/records",
-      "allowed_fields": [
-        "name",
-        "adresse",
-        "bauleiter",
-        "status"
-      ],
-      "pow": true,
-      "pow_difficulty": 50000,
-      "title": "Baustelle — Formular"
-    },
-    {
       "entity": "mangel",
       "app_id": "6a32668ed3e88e64583b36b6",
       "path": "/rest/apps/6a32668ed3e88e64583b36b6/records",
@@ -40,6 +26,20 @@
       "pow": true,
       "pow_difficulty": 50000,
       "title": "Bericht — Formular"
+    },
+    {
+      "entity": "baustelle",
+      "app_id": "6a326689292e299748fee5d3",
+      "path": "/rest/apps/6a326689292e299748fee5d3/records",
+      "allowed_fields": [
+        "name",
+        "adresse",
+        "bauleiter",
+        "status"
+      ],
+      "pow": true,
+      "pow_difficulty": 50000,
+      "title": "Baustelle — Formular"
     }
   ]
 }

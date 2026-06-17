@@ -829,7 +829,7 @@ function DragGhost({ dnd, events }: { dnd: EventDrag; events: CalendarEvent[] })
   if (!ev) return null;
   const tone = ev.tone ?? 'default';
   return createPortal(
-    <div ref={dnd.ghostRef} className="pointer-events-none fixed left-0 top-0 z-[100] will-change-transform" aria-hidden>
+    <div ref={dnd.ghostRef} className="pointer-events-none fixed left-0 top-0 z-[var(--z-drag)] will-change-transform" aria-hidden>
       <div className={`flex max-w-[240px] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold shadow-xl ring-1 ring-black/10 ${TONE_BAR[tone]}`}>
         {!isAllDay(ev) && <span className="shrink-0 tabular-nums opacity-80">{format(eventStart(ev), 'HH:mm')}</span>}
         <span className="truncate">{ev.title}</span>

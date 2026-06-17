@@ -28,7 +28,7 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-background">
       {!IS_EMBED && (
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm" style={{ height: 'var(--topbar-h)' }}>
+      <header className="fixed top-0 left-0 right-0 z-[var(--z-chrome)] bg-white shadow-sm" style={{ height: 'var(--topbar-h)' }}>
         <div className="flex items-center justify-between h-full px-4 lg:px-8">
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -51,7 +51,7 @@ export function Layout() {
 
       {!IS_EMBED && sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[var(--z-scrim)] lg:hidden"
           style={{ top: 'var(--topbar-h)' }}
           onClick={() => setSidebarOpen(false)}
         />
@@ -60,7 +60,7 @@ export function Layout() {
       {!IS_EMBED && (
       <aside
         className={`
-          fixed left-0 z-40 w-72 bg-sidebar border-r border-sidebar-border overflow-hidden
+          fixed left-0 z-[var(--z-sidebar)] w-72 bg-sidebar border-r border-sidebar-border overflow-hidden
           transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
@@ -70,7 +70,7 @@ export function Layout() {
         <div className="flex flex-col h-full">
         <nav className="px-3 pt-4 space-y-0.5">
           <a
-            href="/gateway/apps/6a326689292e299748fee5d3?template=list_page"
+            href="/gateway/apps/6a32668ed3e88e64583b36b6?template=list_page"
             className="flex items-center gap-2 px-4 py-2 rounded-2xl text-base transition-colors min-w-0 text-sidebar-foreground font-normal hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           >
             <IconArrowBackUp size={16} className="shrink-0" />

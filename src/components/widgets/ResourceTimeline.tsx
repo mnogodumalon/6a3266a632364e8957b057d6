@@ -899,7 +899,7 @@ export function ResourceTimeline(props: ResourceTimelineProps) {
         const ev = safeEvents.find(e => e.id === dnd.draggingId);
         if (!ev) return null;
         return createPortal(
-          <div ref={dnd.ghostRef} className="pointer-events-none fixed left-0 top-0 z-[100] will-change-transform" aria-hidden>
+          <div ref={dnd.ghostRef} className="pointer-events-none fixed left-0 top-0 z-[var(--z-drag)] will-change-transform" aria-hidden>
             <div className={`flex max-w-[240px] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold shadow-xl ring-1 ring-black/10 ${TONE_BAR[ev.tone ?? 'default']}`}>
               <span className="truncate">{ev.title}</span>
             </div>

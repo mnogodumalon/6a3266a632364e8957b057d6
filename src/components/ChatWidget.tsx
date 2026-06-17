@@ -414,7 +414,7 @@ export default function ChatWidget() {
       <button
         onClick={() => setChatOpen(!chatOpen)}
         className={`
-          fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full shadow-lg
+          fixed bottom-5 right-5 z-[var(--z-chrome)] w-12 h-12 rounded-full shadow-lg
           flex items-center justify-center transition-all duration-200
           ${chatOpen
             ? 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -428,7 +428,7 @@ export default function ChatWidget() {
 
       {/* Chat panel */}
       {chatOpen && (
-        <div className={`fixed z-50 bg-card shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
+        <div className={`fixed z-[var(--z-chrome)] bg-card shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
           isFullscreen
             ? 'inset-0 rounded-none'
             : 'left-0 right-0 bottom-0 top-[40%] rounded-t-2xl sm:inset-auto sm:bottom-20 sm:right-5 sm:left-auto sm:top-auto sm:w-[480px] sm:h-[640px] sm:border sm:border-border sm:rounded-2xl'

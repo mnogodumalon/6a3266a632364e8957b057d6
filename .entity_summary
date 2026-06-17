@@ -1,5 +1,0 @@
-- Baustelle (baustelle): name[string/text], adresse[string/text], bauleiter[string/text], status[lookup/select], titelfoto[file]
-- Mangel (mangel): titel[string/text], beschreibung[string/textarea], status[lookup/select], frist[date/date], foto[file], baustelle[applookup/select]
-  → baustelle links to app_id 6a326689292e299748fee5d3
-- Bericht (bericht): titel[string/text], datum[date/date], dokument[file], baustelle[applookup/select]
-  → baustelle links to app_id 6a326689292e299748fee5d3

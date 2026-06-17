@@ -72,7 +72,7 @@ export function WorkList({ title, icon, items, onItemClick, empty, max = 5, clas
             <button
               type="button"
               onClick={empty.action.onClick}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 min-h-9 max-sm:min-h-11 rounded-lg border border-border px-3 max-sm:px-4 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
             >
               {empty.action.label}
             </button>
@@ -104,7 +104,7 @@ export function WorkList({ title, icon, items, onItemClick, empty, max = 5, clas
                         item.action!.onClick();
                       }
                     }}
-                    className="shrink-0 rounded-lg border border-border px-2 py-1 text-xs font-medium hover:bg-muted transition-colors"
+                    className="shrink-0 inline-flex items-center justify-center min-h-8 max-sm:min-h-11 rounded-lg border border-border px-2 max-sm:px-4 py-1 text-xs max-sm:text-sm font-medium hover:bg-muted transition-colors"
                   >
                     {item.action.label}
                   </span>

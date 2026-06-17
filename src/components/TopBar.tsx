@@ -122,7 +122,7 @@ export function TopBar() {
       <div ref={appsRef} className="relative">
         <button
           onClick={() => { setAppsOpen(!appsOpen); setProfileOpen(false); }}
-          className="flex flex-col items-center gap-1 cursor-pointer"
+          className="flex flex-col items-center gap-1 cursor-pointer max-sm:p-1"
         >
           <div className="flex items-center justify-center w-[35px] h-[35px] rounded-full bg-white shadow-[0px_0px_4px_rgba(155,155,155,0.5)]">
             <AppsIcon size={20} className="text-foreground" />
@@ -130,7 +130,7 @@ export function TopBar() {
           <span className="text-xs text-[#767676] hidden lg:block">Apps</span>
         </button>
         {appsOpen && appGroups.length > 0 && (
-          <div className="fixed inset-x-3 top-[calc(var(--topbar-h)+0.5rem)] w-auto sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] bg-white rounded-[23px] shadow-[0px_8px_32px_0px_rgba(0,0,0,0.08)] p-5 z-50">
+          <div className="fixed inset-x-3 top-[calc(var(--topbar-h)+0.5rem)] w-auto sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] bg-white rounded-[23px] shadow-[0px_8px_32px_0px_rgba(0,0,0,0.08)] p-5 z-[var(--z-chrome)]">
             {/* Header */}
             <p className="font-semibold text-base text-[#767676] mb-3">Apps</p>
 
@@ -160,7 +160,7 @@ export function TopBar() {
                   <IconArrowsDownUp size={20} className={sortOpen ? 'text-[#d14600]' : 'text-foreground'} />
                 </button>
                 {sortOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-2xl shadow-[0px_8px_32px_0px_rgba(0,0,0,0.08)] py-2 z-50">
+                  <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-2xl shadow-[0px_8px_32px_0px_rgba(0,0,0,0.08)] py-2 z-[var(--z-chrome)]">
                     {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
                       <button
                         key={mode}
@@ -256,7 +256,7 @@ export function TopBar() {
       <div ref={profileRef} className="relative">
         <button
           onClick={() => { setProfileOpen(!profileOpen); setAppsOpen(false); }}
-          className="flex flex-col items-center gap-1 cursor-pointer"
+          className="flex flex-col items-center gap-1 cursor-pointer max-sm:p-1"
         >
           {profile?.image ? (
             <img src={profile.image} alt="" className="w-[35px] h-[35px] rounded-full object-cover" />
@@ -268,7 +268,7 @@ export function TopBar() {
           <span className="text-xs text-[#767676] hidden lg:block">Profil</span>
         </button>
         {profileOpen && profile && (
-          <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-lg border border-border p-4 z-50">
+          <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-lg border border-border p-4 z-[var(--z-chrome)]">
             <div className="flex items-center gap-3">
               {profile.image ? (
                 <img src={profile.image} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />

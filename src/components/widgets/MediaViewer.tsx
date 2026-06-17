@@ -264,7 +264,7 @@ export function MediaLightbox({ open, items, index, onClose, onIndexChange }: Me
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-[var(--z-lightbox)] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

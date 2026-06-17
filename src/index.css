@@ -73,10 +73,36 @@
     background-position: bottom;
     background-repeat: no-repeat;
   }
+  /* Mobile touch targets: every shadcn <Button> renders with
+     data-slot="button". On phones, floor its height at 44px (Apple HIG)
+     regardless of the size variant the consumer/agent chose (h-8/h-9/h-10),
+     so agent-composed desktop buttons become thumb-friendly on mobile with
+     zero extra agent work. Desktop keeps the compact size. `min-height`
+     only raises the floor — it never fights the height utility. Raw inline
+     buttons (worklist chips, seg-pills) carry no data-slot and are sized
+     explicitly in their own components. */
+  @media (max-width: 639px) {
+    [data-slot="button"] {
+      min-height: 2.75rem;
+    }
+  }
 }
 
 :root {
   --topbar-h: 73px;
+
+  /* Z-index ladder — single source of truth for overlay layering.
+   * Use via z-[var(--z-…)]. Chrome sits BELOW overlays so any modal /
+   * drawer covers it; the external shadcn <Dialog> is fixed at 50, so
+   * --z-overlay matches it. NOTE: z-index only ranks WITHIN one stacking
+   * context — a surface must portal to document.body for these to win. */
+  --z-scrim: 20;     /* mobile sidebar backdrop             */
+  --z-sidebar: 30;   /* sidebar                             */
+  --z-chrome: 40;    /* top bar, header menus, chat widget  */
+  --z-overlay: 50;   /* dialogs, drawers, record overlay    */
+  --z-lightbox: 60;  /* media lightbox (above overlays)     */
+  --z-drag: 100;     /* drag ghost (above everything)       */
+
   /* Figma: 16px nav items, 27px cards, 100px pills */
   --radius: 1rem;
 

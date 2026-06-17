@@ -21,19 +21,6 @@ export interface AttachmentInput {
   active?: boolean;
 }
 
-export interface Baustelle {
-  record_id: string;
-  createdat: string;
-  updatedat: string | null;
-  fields: {
-    name?: string;
-    adresse?: string;
-    bauleiter?: string;
-    status?: LookupValue;
-    titelfoto?: string;
-  };
-}
-
 export interface Mangel {
   record_id: string;
   createdat: string;
@@ -60,30 +47,36 @@ export interface Bericht {
   };
 }
 
+export interface Baustelle {
+  record_id: string;
+  createdat: string;
+  updatedat: string | null;
+  fields: {
+    name?: string;
+    adresse?: string;
+    bauleiter?: string;
+    status?: LookupValue;
+    titelfoto?: string;
+  };
+}
+
 export const APP_IDS = {
-  BAUSTELLE: '6a326689292e299748fee5d3',
   MANGEL: '6a32668ed3e88e64583b36b6',
   BERICHT: '6a32668ed559536a0f02fae1',
+  BAUSTELLE: '6a326689292e299748fee5d3',
 } as const;
 
 
 export const LOOKUP_OPTIONS: Record<string, Record<string, {key: string, label: string}[]>> = {
-  'baustelle': {
-    status: [{ key: "in_planung", label: "In Planung" }, { key: "aktiv", label: "Aktiv" }, { key: "abgeschlossen", label: "Abgeschlossen" }],
-  },
   'mangel': {
     status: [{ key: "offen", label: "Offen" }, { key: "in_bearbeitung", label: "In Bearbeitung" }, { key: "behoben", label: "Behoben" }],
+  },
+  'baustelle': {
+    status: [{ key: "in_planung", label: "In Planung" }, { key: "aktiv", label: "Aktiv" }, { key: "abgeschlossen", label: "Abgeschlossen" }],
   },
 };
 
 export const FIELD_TYPES: Record<string, Record<string, string>> = {
-  'baustelle': {
-    'name': 'string/text',
-    'adresse': 'string/text',
-    'bauleiter': 'string/text',
-    'status': 'lookup/select',
-    'titelfoto': 'file',
-  },
   'mangel': {
     'titel': 'string/text',
     'beschreibung': 'string/textarea',
@@ -98,6 +91,16 @@ export const FIELD_TYPES: Record<string, Record<string, string>> = {
     'dokument': 'file',
     'baustelle': 'applookup/select',
   },
+  'baustelle': {
+    'name': 'string/text',
+    'adresse': 'string/text',
+    'bauleiter': 'string/text',
+    'status': 'lookup/select',
+    'titelfoto': 'file',
+  },
+};
+
+export const HUB_TOPOLOGY: Record<string, { field: string; entity: string }[]> = {
 };
 
 type StripLookup<T> = {
@@ -107,6 +110,6 @@ type StripLookup<T> = {
 };
 
 // Helper Types for creating new records (lookup fields as plain strings for API)
-export type CreateBaustelle = StripLookup<Baustelle['fields']>;
 export type CreateMangel = StripLookup<Mangel['fields']>;
 export type CreateBericht = StripLookup<Bericht['fields']>;
+export type CreateBaustelle = StripLookup<Baustelle['fields']>;

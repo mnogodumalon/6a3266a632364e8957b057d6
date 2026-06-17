@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Baustelle, Mangel, Bericht } from '@/types/app';
+import type { Mangel, Bericht, Baustelle } from '@/types/app';
 import { LivingAppsService } from '@/services/livingAppsService';
 
 /** Dashboard data + the OPTIMISTIC-WRITE API.
@@ -13,23 +13,23 @@ import { LivingAppsService } from '@/services/livingAppsService';
  *  There is no other mechanism (no `__optimistic`, no `mutate`).
  */
 export function useDashboardData() {
-  const [baustelle, setBaustelle] = useState<Baustelle[]>([]);
   const [mangel, setMangel] = useState<Mangel[]>([]);
   const [bericht, setBericht] = useState<Bericht[]>([]);
+  const [baustelle, setBaustelle] = useState<Baustelle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchAll = useCallback(async () => {
     setError(null);
     try {
-      const [baustelleData, mangelData, berichtData] = await Promise.all([
-        LivingAppsService.getBaustelle(),
+      const [mangelData, berichtData, baustelleData] = await Promise.all([
         LivingAppsService.getMangel(),
         LivingAppsService.getBericht(),
+        LivingAppsService.getBaustelle(),
       ]);
-      setBaustelle(baustelleData);
       setMangel(mangelData);
       setBericht(berichtData);
+      setBaustelle(baustelleData);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Fehler beim Laden der Daten'));
     } finally {
@@ -43,14 +43,14 @@ export function useDashboardData() {
   useEffect(() => {
     async function silentRefresh() {
       try {
-        const [baustelleData, mangelData, berichtData] = await Promise.all([
-          LivingAppsService.getBaustelle(),
+        const [mangelData, berichtData, baustelleData] = await Promise.all([
           LivingAppsService.getMangel(),
           LivingAppsService.getBericht(),
+          LivingAppsService.getBaustelle(),
         ]);
-        setBaustelle(baustelleData);
         setMangel(mangelData);
         setBericht(berichtData);
+        setBaustelle(baustelleData);
       } catch {
         // silently ignore — stale data is better than no data
       }
@@ -66,5 +66,5 @@ export function useDashboardData() {
     return m;
   }, [baustelle]);
 
-  return { baustelle, setBaustelle, mangel, setMangel, bericht, setBericht, loading, error, fetchAll, baustelleMap };
+  return { mangel, setMangel, bericht, setBericht, baustelle, setBaustelle, loading, error, fetchAll, baustelleMap };
 }

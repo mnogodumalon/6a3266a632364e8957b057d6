@@ -14,8 +14,9 @@
  *   // </custom:intent-imports>
  *   …
  *   // <custom:intents>
- *   { path: '/intents/neue-buchung', label: 'Neue Buchung', icon: IconCalendarPlus, description: 'Buchung in 3 Schritten anlegen' },
- *   // </custom:intents>
+  { path: '/intents/begehung', label: 'Begehung', icon: IconClipboardList, description: 'Mängel erfassen & Begehungsbericht anlegen' },
+  { path: '/intents/maengelabschluss', label: 'Mängelabschluss', icon: IconListCheck, description: 'Offene Mängel abarbeiten & Abschlussbericht erstellen' },
+  // </custom:intents>
  */
 import type { ComponentType } from 'react';
 

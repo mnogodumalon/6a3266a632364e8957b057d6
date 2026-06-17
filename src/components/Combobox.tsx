@@ -121,7 +121,7 @@ export function Combobox({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(o => !o)}
-        className={`flex h-10 w-full items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm
+        className={`flex h-10 max-sm:h-12 w-full items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm
           ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
           disabled:cursor-not-allowed disabled:opacity-50
           ${invalid ? 'border-destructive' : 'border-input'}`}

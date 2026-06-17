@@ -151,7 +151,7 @@ export default function PublicFormMangel() {
                 role="radio"
                 aria-checked={lookupKey(fields.status) === 'offen'}
                 onClick={() => setFields(f => ({ ...f, status: (lookupKey(f.status) === 'offen' ? undefined : 'offen') as any }))}
-                className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   lookupKey(fields.status) === 'offen'
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-background text-foreground border-input hover:bg-accent'
@@ -164,7 +164,7 @@ export default function PublicFormMangel() {
                 role="radio"
                 aria-checked={lookupKey(fields.status) === 'in_bearbeitung'}
                 onClick={() => setFields(f => ({ ...f, status: (lookupKey(f.status) === 'in_bearbeitung' ? undefined : 'in_bearbeitung') as any }))}
-                className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   lookupKey(fields.status) === 'in_bearbeitung'
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-background text-foreground border-input hover:bg-accent'
@@ -177,7 +177,7 @@ export default function PublicFormMangel() {
                 role="radio"
                 aria-checked={lookupKey(fields.status) === 'behoben'}
                 onClick={() => setFields(f => ({ ...f, status: (lookupKey(f.status) === 'behoben' ? undefined : 'behoben') as any }))}
-                className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   lookupKey(fields.status) === 'behoben'
                     ? 'bg-foreground text-background border-foreground'
                     : 'bg-background text-foreground border-input hover:bg-accent'

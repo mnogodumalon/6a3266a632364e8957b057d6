@@ -463,7 +463,7 @@ export function RecordRelation({ label, name, meta, icon: Icon, href, onClick, c
     return <a href={href} className={`block rounded-2xl border border-border bg-card p-4 hover:bg-muted/50 transition-colors${extra}`}>{Inner}</a>;
   }
   if (onClick) {
-    return <button type="button" onClick={onClick} className={`text-left rounded-2xl border border-border bg-card p-4 hover:bg-muted/50 transition-colors${extra}`}>{Inner}</button>;
+    return <button type="button" onClick={onClick} className={`block w-full text-left rounded-2xl border border-border bg-card p-4 hover:bg-muted/50 transition-colors${extra}`}>{Inner}</button>;
   }
   return <div className={`rounded-2xl border border-border bg-card p-4 ${isClickable ? 'cursor-pointer' : ''}${extra}`}>{Inner}</div>;
 }
@@ -699,7 +699,7 @@ export function RecordOverlay({
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="inline-flex h-9 w-9 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-lg max-sm:rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors max-sm:border max-sm:border-border max-sm:bg-card max-sm:shadow-sm"
             aria-label={backLabel}
           >
             <IconArrowLeft size={18} />
@@ -708,7 +708,7 @@ export function RecordOverlay({
         <button
           type="button"
           onClick={requestClose}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          className="inline-flex h-9 w-9 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-lg max-sm:rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors max-sm:border max-sm:border-border max-sm:bg-card max-sm:shadow-sm"
           aria-label={closeLabel}
         >
           <IconX size={18} />
@@ -735,7 +735,7 @@ export function RecordOverlay({
       : 'w-full';
     return createPortal(
       <div
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+        className="fixed inset-0 z-[var(--z-overlay)] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
         onClick={closeOnBackdropClick ? requestClose : undefined}
       >
         <div
@@ -770,14 +770,14 @@ export function RecordOverlay({
   return createPortal(
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150"
+        className="fixed inset-0 z-[var(--z-overlay)] bg-black/40 backdrop-blur-sm animate-in fade-in duration-150"
         onClick={closeOnBackdropClick ? requestClose : undefined}
       />
       <aside
         role="dialog"
         aria-label={ariaLabel}
         aria-modal="true"
-        className={`fixed top-0 right-0 z-50 h-full w-full ${RECORD_OVERLAY_SIDE_SIZE[size]} bg-background border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200${className ? ` ${className}` : ''}`}
+        className={`fixed top-0 right-0 z-[var(--z-overlay)] h-full w-full ${RECORD_OVERLAY_SIDE_SIZE[size]} bg-background border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200${className ? ` ${className}` : ''}`}
       >
         {arrows}
         {header}
