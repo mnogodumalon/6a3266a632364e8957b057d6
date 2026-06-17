@@ -58,6 +58,9 @@ export default function DashboardOverview() {
   // Detail-Panel: angeklickte Baustelle
   const [selectedBaustelle, setSelectedBaustelle] = useState<Baustelle | null>(null);
 
+  // Mangel-Detail-Overlay über dem Baustellen-Panel
+  const [panelOverlayMangel, setPanelOverlayMangel] = useState<EnrichedMangel | null>(null);
+
   // Overlay stack for details
   const overlay = useRecordOverlayStack<{ type: 'mangel' | 'baustelle' | 'bericht'; id: string }>();
 
@@ -532,11 +535,11 @@ export default function DashboardOverview() {
       {selectedBaustelle && createPortal(
         <div
           className="fixed inset-0 z-40"
-          onClick={() => setSelectedBaustelle(null)}
+          onClick={() => { setSelectedBaustelle(null); setPanelOverlayMangel(null); }}
           aria-hidden="true"
         >
           <div
-            className="absolute right-0 top-0 h-full w-full max-w-sm bg-card border-l border-border shadow-xl flex flex-col"
+            className="absolute right-0 top-0 h-full w-full max-w-sm bg-card border-l border-border shadow-xl flex flex-col overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             {/* Panel Header */}
@@ -567,13 +570,85 @@ export default function DashboardOverview() {
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedBaustelle(null)}
+                onClick={() => { setSelectedBaustelle(null); setPanelOverlayMangel(null); }}
                 className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg hover:bg-muted transition-colors"
                 aria-label="Panel schließen"
               >
                 <IconX size={16} />
               </button>
             </div>
+
+            {/* Mangel-Detail-Overlay über dem Panel */}
+            {panelOverlayMangel && (() => {
+              const m = panelOverlayMangel;
+              const statusKey = lookupKey(m.fields.status);
+              const isOverdue = m.fields.frist && m.fields.frist < today && statusKey !== 'behoben';
+              const nextLabel = statusKey === 'offen' ? 'In Bearbeitung setzen'
+                : statusKey === 'in_bearbeitung' ? 'Als behoben markieren'
+                : null;
+              return (
+                <div className="absolute inset-0 z-10 flex flex-col bg-card">
+                  {/* Zurück-Header */}
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPanelOverlayMangel(null)}
+                      className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
+                      aria-label="Zurück zur Baustelle"
+                    >
+                      <IconChevronRight size={14} className="shrink-0 rotate-180" />
+                      {selectedBaustelle?.fields.name ?? 'Baustelle'}
+                    </button>
+                  </div>
+                  {/* Mangel-Details */}
+                  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-foreground text-base leading-snug">{m.fields.titel ?? 'Ohne Titel'}</h3>
+                      <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${
+                        isOverdue ? 'bg-destructive/10 text-destructive' :
+                        statusKey === 'behoben' ? 'bg-green-500/10 text-green-600' :
+                        statusKey === 'in_bearbeitung' ? 'bg-primary/10 text-primary' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {isOverdue ? 'Überfällig' : (m.fields.status?.label ?? '—')}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {m.fields.frist && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-20 shrink-0">Frist</span>
+                          <span className={`text-sm ${isOverdue ? 'text-destructive font-medium' : 'text-foreground'}`}>{formatDate(m.fields.frist)}</span>
+                        </div>
+                      )}
+                      {m.baustelleName && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-20 shrink-0">Baustelle</span>
+                          <span className="text-sm text-foreground truncate">{m.baustelleName}</span>
+                        </div>
+                      )}
+                      {m.fields.beschreibung && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Beschreibung</span>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{m.fields.beschreibung}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Footer */}
+                  {nextLabel && (
+                    <div className="shrink-0 px-4 py-3 border-t border-border">
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() => { advanceMangel(m); setPanelOverlayMangel(null); }}
+                      >
+                        {nextLabel}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Mängel-Liste */}
             <div className="flex-1 overflow-y-auto">
@@ -609,7 +684,7 @@ export default function DashboardOverview() {
                       <li key={m.record_id}>
                         <button
                           type="button"
-                          onClick={() => overlay.replace({ type: 'mangel', id: m.record_id })}
+                          onClick={() => setPanelOverlayMangel(m)}
                           className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-muted/60 transition-colors"
                         >
                           <div className="flex items-start gap-2 min-w-0">
