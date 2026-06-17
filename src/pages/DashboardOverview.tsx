@@ -8,7 +8,7 @@ import { formatDate, lookupKey } from '@/lib/formatters';
 import { useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import { IconAlertCircle, IconTool, IconRefresh, IconCheck, IconAlertTriangle, IconPlus, IconFileText, IconClipboardList, IconX, IconChevronRight, IconMapPin, IconUser, IconPhoto, IconArrowRight, IconMessageCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconTool, IconRefresh, IconCheck, IconAlertTriangle, IconPlus, IconFileText, IconClipboardList, IconX, IconChevronRight, IconMapPin, IconUser, IconPhoto, IconArrowRight, IconMessageCircle, IconFilter, IconAdjustmentsHorizontal } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { StatCard, StatCardRow } from '@/components/StatCard';
 import { DashboardGrid } from '@/components/DashboardGrid';
@@ -54,6 +54,11 @@ export default function DashboardOverview() {
 
   // Filter state
   const [baustelleFilter, setBaustelleFilter] = useState<string | null>(null);
+
+  // Seitliches Filter-Panel
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterFrist, setFilterFrist] = useState<'alle' | 'überfällig' | 'diese_woche' | 'ohne_frist'>('alle');
 
   // Detail-Panel: angeklickte Baustelle
   const [selectedBaustelle, setSelectedBaustelle] = useState<Baustelle | null>(null);
@@ -101,11 +106,41 @@ export default function DashboardOverview() {
     [enrichedBericht]
   );
 
-  // Filter mängel by baustelle
+  // Filter mängel by baustelle + panel filters
   const filteredMängel = useMemo(() => {
-    if (!baustelleFilter) return enrichedMangel;
-    return enrichedMangel.filter(m => extractRecordId(m.fields.baustelle) === baustelleFilter);
-  }, [enrichedMangel, baustelleFilter]);
+    let result = enrichedMangel;
+    // Baustelle-Filter (Kacheln oben)
+    if (baustelleFilter) {
+      result = result.filter(m => extractRecordId(m.fields.baustelle) === baustelleFilter);
+    }
+    // Status-Filter (Panel)
+    if (filterStatus.length > 0) {
+      result = result.filter(m => {
+        const key = lookupKey(m.fields.status) ?? '';
+        return filterStatus.includes(key);
+      });
+    }
+    // Frist-Filter (Panel)
+    if (filterFrist !== 'alle') {
+      result = result.filter(m => {
+        if (filterFrist === 'überfällig') {
+          return m.fields.frist && m.fields.frist < today && lookupKey(m.fields.status) !== 'behoben';
+        }
+        if (filterFrist === 'diese_woche') {
+          if (!m.fields.frist) return false;
+          const weekEnd = format(new Date(clock.getFullYear(), clock.getMonth(), clock.getDate() + (7 - clock.getDay())), 'yyyy-MM-dd');
+          return m.fields.frist >= today && m.fields.frist <= weekEnd;
+        }
+        if (filterFrist === 'ohne_frist') {
+          return !m.fields.frist;
+        }
+        return true;
+      });
+    }
+    return result;
+  }, [enrichedMangel, baustelleFilter, filterStatus, filterFrist, today, clock]);
+
+  const activeFilterCount = filterStatus.length + (filterFrist !== 'alle' ? 1 : 0);
 
   // Mängel für das Detail-Panel der ausgewählten Baustelle
   const panelMängel = useMemo(() => {
@@ -441,6 +476,20 @@ export default function DashboardOverview() {
             <IconTool size={14} className="mr-1.5 shrink-0" />
             <span className="hidden sm:inline">Baustelle</span>
             <span className="sm:hidden">+</span>
+          </Button>
+          <Button
+            size="sm"
+            variant={activeFilterCount > 0 ? 'default' : 'outline'}
+            onClick={() => setFilterPanelOpen(true)}
+            className="relative"
+          >
+            <IconAdjustmentsHorizontal size={14} className="mr-1.5 shrink-0" />
+            <span className="hidden sm:inline">Filter</span>
+            {activeFilterCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] rounded-full bg-primary-foreground/20 text-[11px] font-bold">
+                {activeFilterCount}
+              </span>
+            )}
           </Button>
           <Button
             size="sm"
@@ -856,6 +905,118 @@ export default function DashboardOverview() {
                 </div>
               </div>
             )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Seitliches Filter-Panel */}
+      {filterPanelOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[var(--z-overlay)]"
+          onClick={() => setFilterPanelOpen(false)}
+          aria-hidden="true"
+        >
+          <div
+            className="absolute right-0 top-0 h-full w-full max-w-xs bg-card border-l border-border shadow-xl flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mängel filtern"
+          >
+            {/* Panel Header */}
+            <div className="flex items-center justify-between gap-3 px-4 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <IconFilter size={16} className="text-muted-foreground shrink-0" />
+                <h2 className="font-semibold text-foreground text-sm">Mängel filtern</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFilterPanelOpen(false)}
+                className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg hover:bg-muted transition-colors"
+                aria-label="Filter schließen"
+              >
+                <IconX size={16} />
+              </button>
+            </div>
+
+            {/* Filter-Inhalt */}
+            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+
+              {/* Status-Filter */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Status</p>
+                <div className="space-y-2">
+                  {(LOOKUP_OPTIONS['mangel']?.['status'] ?? []).map(opt => {
+                    const checked = filterStatus.includes(opt.key);
+                    return (
+                      <label
+                        key={opt.key}
+                        className="flex items-center gap-3 cursor-pointer group"
+                      >
+                        <span
+                          role="checkbox"
+                          aria-checked={checked}
+                          tabIndex={0}
+                          onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setFilterStatus(prev => checked ? prev.filter(k => k !== opt.key) : [...prev, opt.key]); } }}
+                          onClick={() => setFilterStatus(prev => checked ? prev.filter(k => k !== opt.key) : [...prev, opt.key])}
+                          className={`shrink-0 w-4 h-4 rounded border transition-colors flex items-center justify-center ${checked ? 'bg-primary border-primary' : 'border-border bg-background group-hover:border-primary/50'}`}
+                        >
+                          {checked && <IconCheck size={11} className="text-primary-foreground" />}
+                        </span>
+                        <span className={`text-sm ${
+                          opt.key === 'behoben' ? 'text-green-600' :
+                          opt.key === 'in_bearbeitung' ? 'text-primary' :
+                          'text-foreground'
+                        }`}>{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Frist-Filter */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Frist</p>
+                <div className="space-y-2">
+                  {([
+                    { key: 'alle', label: 'Alle Fristen' },
+                    { key: 'überfällig', label: 'Überfällig' },
+                    { key: 'diese_woche', label: 'Diese Woche fällig' },
+                    { key: 'ohne_frist', label: 'Ohne Frist' },
+                  ] as const).map(opt => (
+                    <label key={opt.key} className="flex items-center gap-3 cursor-pointer group">
+                      <span
+                        role="radio"
+                        aria-checked={filterFrist === opt.key}
+                        tabIndex={0}
+                        onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setFilterFrist(opt.key); } }}
+                        onClick={() => setFilterFrist(opt.key)}
+                        className={`shrink-0 w-4 h-4 rounded-full border transition-colors flex items-center justify-center ${filterFrist === opt.key ? 'border-primary' : 'border-border bg-background group-hover:border-primary/50'}`}
+                      >
+                        {filterFrist === opt.key && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                      </span>
+                      <span className={`text-sm ${opt.key === 'überfällig' ? 'text-destructive' : 'text-foreground'}`}>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer: Zurücksetzen + Anwenden */}
+            <div className="shrink-0 px-4 py-4 border-t border-border flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => { setFilterStatus([]); setFilterFrist('alle'); }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                disabled={activeFilterCount === 0}
+              >
+                Zurücksetzen
+              </button>
+              <Button size="sm" onClick={() => setFilterPanelOpen(false)}>
+                {activeFilterCount > 0 ? `${filteredMängel.length} Mängel anzeigen` : 'Schließen'}
+              </Button>
+            </div>
           </div>
         </div>,
         document.body

@@ -189,12 +189,14 @@ The CRUD pages provide basic list-based CRUD as a fallback. **Your job is to bui
   //  drag-to-create is NOT a gap either — that's onRangeCreate)
   <CalendarWidget events={events} renderEvent={(ev) => <MyChip ev={ev} /> /* TODO(widget-gap): multi-select events for a bulk action */} />
   ```
-- **Overlays portal — never stack them in page flow.** Any full-screen surface you add (a record detail, a custom panel, a lightbox) reuses a pre-generated portaled primitive: `<RecordOverlay>` for record detail, `<ActionsDrawer>` for a side panel, `<MediaLightbox>` for media. Never hand-roll a `fixed inset-0` overlay inline, and never raise a page/map/card z-index to lift something — an animated dashboard slot is its own stacking context that traps it, and no z-index escapes a stacking context. Only a portaled primitive (it renders into `document.body`) layers reliably above the page.
+- **Overlays portal — never stack them in page flow.** Any full-screen surface you add reuses a pre-generated **portaled** primitive: `<RecordOverlay>` for record detail, `<ActionsDrawer>` for a side panel/list, `<MediaLightbox>` for media. They render into `document.body`, so they always layer above the page. A dashboard slot is its own stacking context (it animates with a transform) — an overlay rendered inline there is trapped, and **no z-index escapes a stacking context**. Only if no primitive fits may you hand-roll one, and then it MUST `createPortal(document.body)` **and** sit at the overlay layer `z-[var(--z-overlay)]` — never a bare number (`z-40` ties with the top bar and the sidebar; `z-[9000]` is arbitrary and outranks drag ghosts/toasts).
   ```tsx
-  // ❌ WRONG — inline overlay, trapped by the slot's stacking context; no z-index saves it
-  <div className="fixed inset-0 z-[9999]">…</div>
-  // ✅ RIGHT — a portaled primitive always layers correctly
-  <RecordOverlay open={open} onClose={close}>…</RecordOverlay>
+  // ❌ WRONG — inline (trapped); or portaled but with an invented z (ties chrome / arbitrary)
+  <div className="fixed inset-0 z-40">…</div>
+  // ✅ RIGHT — reuse the portaled primitive (preferred)…
+  <ActionsDrawer open={open} onClose={close}>…</ActionsDrawer>
+  // …or, only if none fits, hand-roll portaled AT the overlay layer:
+  createPortal(<div className="fixed inset-0 z-[var(--z-overlay)]">…</div>, document.body)
   ```
 - **App.tsx** — Routes are pre-configured. You MAY add custom imports/routes **only inside the `<custom:imports>` and `<custom:routes>` marker blocks** — content between markers is preserved across scaffold updates, everything else is overwritten. Example:
   ```tsx
