@@ -1,0 +1,637 @@
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { enrichMangel, enrichBericht } from '@/lib/enrich';
+import type { EnrichedMangel } from '@/types/enriched';
+import { APP_IDS, LOOKUP_OPTIONS } from '@/types/app';
+import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
+import { formatDate, lookupKey } from '@/lib/formatters';
+import { useState, useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { IconAlertCircle, IconTool, IconRefresh, IconCheck, IconAlertTriangle, IconPlus, IconFileText, IconClipboardList } from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
+import { StatCard, StatCardRow } from '@/components/StatCard';
+import { DashboardGrid } from '@/components/DashboardGrid';
+import { HeroBanner } from '@/components/HeroBanner';
+import { WorkList } from '@/components/WorkList';
+import { KanbanWidget, type KanbanCard, type KanbanColumn } from '@/components/widgets/KanbanWidget';
+import { RecordOverlay, RecordHeader, RecordSection, RecordField, RecordAttachments, useRecordOverlayStack } from '@/components/widgets/RecordView';
+import { MangelDialog } from '@/components/dialogs/MangelDialog';
+import { BaustelleDialog } from '@/components/dialogs/BaustelleDialog';
+import { BerichtDialog } from '@/components/dialogs/BerichtDialog';
+import { AI_PHOTO_SCAN, AI_PHOTO_LOCATION } from '@/config/ai-features';
+import { useClock, gruss, namen, undoToast, ENTRANCE, entranceDelay } from '@/lib/polish';
+import { format } from 'date-fns';
+
+const APPGROUP_ID = '6a3266a632364e8957b057d6';
+const REPAIR_ENDPOINT = '/claude/build/repair';
+
+// Mangel columns from schema
+const MANGEL_COLUMNS: KanbanColumn[] = (LOOKUP_OPTIONS['mangel']?.['status'] ?? []).map(o => ({
+  key: o.key,
+  label: o.label,
+  tone: o.key === 'offen' ? 'warning' : o.key === 'in_bearbeitung' ? 'primary' : 'success',
+}));
+
+function mangelTone(status: string | undefined): KanbanCard['tone'] {
+  if (status === 'behoben') return 'success';
+  if (status === 'in_bearbeitung') return 'primary';
+  return 'warning';
+}
+
+export default function DashboardOverview() {
+  const {
+    baustelle, setBaustelle, mangel, setMangel, bericht,
+    baustelleMap,
+    loading, error, fetchAll,
+  } = useDashboardData();
+
+  const clock = useClock();
+  const today = format(clock, 'yyyy-MM-dd');
+
+  const enrichedMangel = useMemo(() => enrichMangel(mangel, { baustelleMap }), [mangel, baustelleMap]);
+  const enrichedBericht = useMemo(() => enrichBericht(bericht, { baustelleMap }), [bericht, baustelleMap]);
+
+  // Filter state
+  const [baustelleFilter, setBaustelleFilter] = useState<string | null>(null);
+
+  // Overlay stack for details
+  const overlay = useRecordOverlayStack<{ type: 'mangel' | 'baustelle' | 'bericht'; id: string }>();
+
+  // Dialog state
+  const [mangelDialogOpen, setMangelDialogOpen] = useState(false);
+  const [mangelDefaults, setMangelDefaults] = useState<Record<string, unknown> | undefined>(undefined);
+  const [editMangel, setEditMangel] = useState<EnrichedMangel | null>(null);
+
+  const [baustelleDialogOpen, setBaustelleDialogOpen] = useState(false);
+  const [berichtDialogOpen, setBerichtDialogOpen] = useState(false);
+
+  // Computed data — ALL hooks must come before early returns
+  const überfälligeMängel = useMemo(() => {
+    return enrichedMangel.filter(m => {
+      const key = lookupKey(m.fields.status);
+      if (key === 'behoben') return false;
+      if (!m.fields.frist) return false;
+      return m.fields.frist < today;
+    });
+  }, [enrichedMangel, today]);
+
+  const offeneMängel = useMemo(() =>
+    enrichedMangel.filter(m => lookupKey(m.fields.status) !== 'behoben'), [enrichedMangel]);
+
+  const aktiveBaustellen = useMemo(() =>
+    baustelle.filter(b => lookupKey(b.fields.status) === 'aktiv'), [baustelle]);
+
+  const recenteBerichte = useMemo(() =>
+    [...enrichedBericht].sort((a, b) => (b.fields.datum ?? '').localeCompare(a.fields.datum ?? '')).slice(0, 5),
+    [enrichedBericht]
+  );
+
+  // Filter mängel by baustelle
+  const filteredMängel = useMemo(() => {
+    if (!baustelleFilter) return enrichedMangel;
+    return enrichedMangel.filter(m => extractRecordId(m.fields.baustelle) === baustelleFilter);
+  }, [enrichedMangel, baustelleFilter]);
+
+  // Kanban cards
+  const kanbanCards = useMemo<KanbanCard[]>(() => filteredMängel.map(m => {
+    const status = lookupKey(m.fields.status) ?? MANGEL_COLUMNS[0]?.key ?? '';
+    const baustelleName = m.baustelleName || 'Unbekannte Baustelle';
+    return {
+      id: `mangel:${m.record_id}`,
+      column: status,
+      title: m.fields.titel ?? 'Ohne Titel',
+      subtitle: (
+        <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+          <span className="truncate">{baustelleName}</span>
+          {m.fields.frist && (
+            <span className={m.fields.frist < today ? 'text-destructive font-medium' : ''}>
+              Frist: {formatDate(m.fields.frist)}
+            </span>
+          )}
+        </span>
+      ),
+      tone: mangelTone(status),
+    };
+  }), [filteredMängel, today]);
+
+  // Context greeting
+  const contextLine = useMemo(() => {
+    if (überfälligeMängel.length > 0) {
+      const names = namen(überfälligeMängel.map(m => m.fields.titel ?? ''));
+      return `${names} — ${überfälligeMängel.length === 1 ? 'Frist überschritten' : 'Fristen überschritten'}.`;
+    }
+    if (offeneMängel.length > 0) {
+      return `${offeneMängel.length} Mängel offen — ${aktiveBaustellen.length} Baustellen aktiv.`;
+    }
+    return `${aktiveBaustellen.length} Baustellen aktiv, alles im Zeitplan.`;
+  }, [überfälligeMängel, offeneMängel, aktiveBaustellen]);
+
+  // Advance mangel status
+  const advanceMangel = async (m: EnrichedMangel) => {
+    const currentKey = lookupKey(m.fields.status);
+    const newKey = currentKey === 'offen' ? 'in_bearbeitung'
+      : currentKey === 'in_bearbeitung' ? 'behoben'
+      : null;
+    if (!newKey) return;
+    const prev = m.fields.status;
+    // Optimistic
+    setMangel(prev2 => prev2.map(x => x.record_id === m.record_id
+      ? { ...x, fields: { ...x.fields, status: LOOKUP_OPTIONS['mangel']?.['status']?.find(o => o.key === newKey) ?? { key: newKey, label: newKey } } }
+      : x));
+    const label = newKey === 'in_bearbeitung' ? 'In Bearbeitung' : 'Behoben';
+    undoToast(`Mangel auf „${label}" gesetzt`, async () => {
+      setMangel(prev2 => prev2.map(x => x.record_id === m.record_id
+        ? { ...x, fields: { ...x.fields, status: prev } }
+        : x));
+      const prevKey = typeof prev === 'object' && prev !== null && 'key' in prev ? (prev as { key: string }).key : (prev as unknown as string | undefined) ?? '';
+      await LivingAppsService.updateMangelEntry(m.record_id, { status: prevKey });
+    });
+    try {
+      await LivingAppsService.updateMangelEntry(m.record_id, { status: newKey });
+    } catch {
+      fetchAll();
+    }
+  };
+
+  if (loading) return <DashboardSkeleton />;
+  if (error) return <DashboardError error={error} onRetry={fetchAll} />;
+
+  // Hero signal: überfällige Mängel
+  const heroNode = überfälligeMängel.length > 0 ? (
+    <HeroBanner
+      icon={<IconAlertTriangle size={18} />}
+      tone="destructive"
+      action={{
+        label: 'Jetzt bearbeiten',
+        onClick: () => {
+          const first = überfälligeMängel[0];
+          advanceMangel(first);
+        },
+      }}
+    >
+      <b>{namen(überfälligeMängel.map(m => m.fields.titel ?? ''))}</b>
+      {' '}— {überfälligeMängel.length === 1 ? 'Frist überschritten' : `${überfälligeMängel.length} Fristen überschritten`}.
+      {' '}{überfälligeMängel[0].baustelleName && `Baustelle: ${überfälligeMängel[0].baustelleName}.`}
+    </HeroBanner>
+  ) : null;
+
+  const kpisNode = (
+    <StatCardRow>
+      <StatCard
+        title="Überfällig"
+        value={überfälligeMängel.length}
+        description={überfälligeMängel.length > 0 ? 'Frist überschritten' : 'Alle Fristen eingehalten'}
+        icon={<IconAlertCircle size={18} className="text-muted-foreground" />}
+        tone={überfälligeMängel.length > 0 ? 'destructive' : 'default'}
+        onClick={() => setBaustelleFilter(null)}
+      />
+      <StatCard
+        title="Offen"
+        value={offeneMängel.length}
+        description={offeneMängel.length > 0 ? 'Noch nicht behoben' : 'Keine offenen Mängel'}
+        icon={<IconClipboardList size={18} className="text-muted-foreground" />}
+        tone={offeneMängel.length > 5 ? 'warning' : 'default'}
+      />
+      <StatCard
+        title="Aktive Baustellen"
+        value={aktiveBaustellen.length}
+        description={aktiveBaustellen.length > 0
+          ? namen(aktiveBaustellen.map(b => b.fields.name ?? ''))
+          : 'Keine aktiven Baustellen'}
+        icon={<IconTool size={18} className="text-muted-foreground" />}
+        tone="default"
+      />
+      <StatCard
+        title="Berichte"
+        value={bericht.length}
+        description={recenteBerichte[0]?.fields.datum ? `Letzter: ${formatDate(recenteBerichte[0].fields.datum)}` : 'Noch kein Bericht'}
+        icon={<IconFileText size={18} className="text-muted-foreground" />}
+        tone="default"
+        onClick={() => setBerichtDialogOpen(true)}
+      />
+    </StatCardRow>
+  );
+
+  // Aside: überfällige/offene Mängel + aktuelle Berichte
+  const mangelListItems = [...überfälligeMängel, ...offeneMängel.filter(m => !überfälligeMängel.includes(m))]
+    .slice(0, 6)
+    .map(m => {
+      const statusKey = lookupKey(m.fields.status);
+      const isOverdue = m.fields.frist && m.fields.frist < today && statusKey !== 'behoben';
+      const nextLabel = statusKey === 'offen' ? '→ Bearbeiten'
+        : statusKey === 'in_bearbeitung' ? '✓ Behoben'
+        : null;
+      return {
+        id: m.record_id,
+        title: m.fields.titel ?? 'Ohne Titel',
+        secondLine: (
+          <span>
+            {isOverdue
+              ? <span className="font-medium text-destructive">Überfällig</span>
+              : <span className="text-muted-foreground">{m.fields.status?.label ?? '—'}</span>
+            }
+            {m.baustelleName && <span className="text-muted-foreground"> · {m.baustelleName}</span>}
+            {m.fields.frist && <span className="text-muted-foreground"> · {formatDate(m.fields.frist)}</span>}
+          </span>
+        ),
+        action: nextLabel ? { label: nextLabel, onClick: () => advanceMangel(m) } : undefined,
+      };
+    });
+
+  const berichtListItems = recenteBerichte.map(b => ({
+    id: b.record_id,
+    title: b.fields.titel ?? 'Ohne Titel',
+    secondLine: (
+      <span className="text-muted-foreground">
+        {b.baustelleName || '—'}
+        {b.fields.datum && <> · {formatDate(b.fields.datum)}</>}
+      </span>
+    ),
+  }));
+
+  const asideNode = (
+    <>
+      <WorkList
+        title="Offene Mängel"
+        icon={<IconAlertCircle size={14} className="shrink-0" />}
+        items={mangelListItems}
+        onItemClick={id => overlay.replace({ type: 'mangel', id })}
+        empty={{
+          text: 'Alle Mängel behoben — keine offenen Punkte.',
+          action: { label: 'Mangel erfassen', onClick: () => { setMangelDefaults(undefined); setMangelDialogOpen(true); } },
+        }}
+      />
+      <WorkList
+        title="Letzte Berichte"
+        icon={<IconFileText size={14} className="shrink-0" />}
+        items={berichtListItems}
+        onItemClick={id => overlay.replace({ type: 'bericht', id })}
+        empty={{
+          text: 'Noch kein Bericht vorhanden.',
+          action: { label: 'Bericht anlegen', onClick: () => setBerichtDialogOpen(true) },
+        }}
+      />
+    </>
+  );
+
+  // Baustelle filter chips
+  const filterChips = baustelle.length > 1 ? (
+    <div className="flex flex-wrap gap-2 mb-3">
+      <button
+        type="button"
+        onClick={() => setBaustelleFilter(null)}
+        className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+          baustelleFilter === null
+            ? 'bg-primary text-primary-foreground border-primary'
+            : 'bg-card border-border text-muted-foreground hover:bg-muted'
+        }`}
+      >
+        Alle Baustellen
+      </button>
+      {baustelle.map(b => (
+        <button
+          key={b.record_id}
+          type="button"
+          onClick={() => setBaustelleFilter(b.record_id === baustelleFilter ? null : b.record_id)}
+          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+            baustelleFilter === b.record_id
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-card border-border text-muted-foreground hover:bg-muted'
+          }`}
+        >
+          {b.fields.name ?? b.record_id}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  const primaryNode = (
+    <KanbanWidget
+      cards={kanbanCards}
+      columns={MANGEL_COLUMNS}
+      defaultCollapsed={['behoben']}
+      onCardClick={card => overlay.replace({ type: 'mangel', id: card.id.split(':')[1] ?? '' })}
+      onCardMove={async (cardId, newColumn) => {
+        const rid = cardId.split(':')[1];
+        if (!rid) return;
+        const target = mangel.find(m => m.record_id === rid);
+        if (!target) return;
+        const prev = target.fields.status;
+        setMangel(prev2 => prev2.map(m =>
+          m.record_id === rid
+            ? { ...m, fields: { ...m.fields, status: LOOKUP_OPTIONS['mangel']?.['status']?.find(o => o.key === newColumn) ?? { key: newColumn, label: newColumn } } }
+            : m
+        ));
+        const label = LOOKUP_OPTIONS['mangel']?.['status']?.find(o => o.key === newColumn)?.label ?? newColumn;
+        undoToast(`Mangel auf „${label}" gesetzt`, async () => {
+          setMangel(prev2 => prev2.map(m =>
+            m.record_id === rid
+              ? { ...m, fields: { ...m.fields, status: prev } }
+              : m
+          ));
+          const prevKey2 = typeof prev === 'object' && prev !== null && 'key' in prev ? (prev as { key: string }).key : (prev as unknown as string | undefined) ?? '';
+          await LivingAppsService.updateMangelEntry(rid, { status: prevKey2 });
+        });
+        try {
+          await LivingAppsService.updateMangelEntry(rid, { status: newColumn });
+        } catch {
+          fetchAll();
+        }
+      }}
+      onAddCard={column => {
+        setMangelDefaults({ status: column, ...(baustelleFilter ? { baustelle: createRecordUrl(APP_IDS.BAUSTELLE, baustelleFilter) } : {}) });
+        setEditMangel(null);
+        setMangelDialogOpen(true);
+      }}
+    >
+      {filterChips}
+    </KanbanWidget>
+  );
+
+  // Overlay content
+  const currentMangel = overlay.top?.type === 'mangel'
+    ? enrichedMangel.find(m => m.record_id === overlay.top!.id)
+    : undefined;
+  const currentBericht = overlay.top?.type === 'bericht'
+    ? enrichedBericht.find(b => b.record_id === overlay.top!.id)
+    : undefined;
+  const currentBaustelle = overlay.top?.type === 'baustelle'
+    ? baustelle.find(b => b.record_id === overlay.top!.id)
+    : undefined;
+
+  const currentMangelKey = currentMangel ? lookupKey(currentMangel.fields.status) : undefined;
+  const nextMangelLabel = currentMangelKey === 'offen' ? 'In Bearbeitung setzen'
+    : currentMangelKey === 'in_bearbeitung' ? 'Als behoben markieren'
+    : null;
+
+  return (
+    <>
+      {/* Page header */}
+      <div className={`flex flex-wrap items-start justify-between gap-3 mb-6 ${ENTRANCE}`}>
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold text-foreground">{gruss(clock)}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 truncate max-w-xl">{contextLine}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setBaustelleDialogOpen(true)}
+          >
+            <IconTool size={14} className="mr-1.5 shrink-0" />
+            <span className="hidden sm:inline">Baustelle</span>
+            <span className="sm:hidden">+</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => { setMangelDefaults(undefined); setEditMangel(null); setMangelDialogOpen(true); }}
+          >
+            <IconPlus size={14} className="mr-1.5 shrink-0" />
+            <span>Mangel</span>
+          </Button>
+        </div>
+      </div>
+
+      <DashboardGrid
+        hero={heroNode}
+        kpis={kpisNode}
+        aside={asideNode}
+        primary={primaryNode}
+      />
+
+      {/* Mangel detail overlay */}
+      <RecordOverlay
+        open={overlay.open && overlay.top?.type === 'mangel'}
+        onClose={overlay.close}
+        ariaLabel="Mangel"
+        onEdit={currentMangel ? () => { setEditMangel(currentMangel); setMangelDialogOpen(true); overlay.close(); } : undefined}
+        footer={nextMangelLabel && currentMangel ? (
+          <Button size="sm" onClick={() => { advanceMangel(currentMangel); overlay.close(); }}>
+            {nextMangelLabel}
+          </Button>
+        ) : undefined}
+      >
+        {currentMangel && (
+          <>
+            <RecordHeader
+              title={currentMangel.fields.titel ?? 'Ohne Titel'}
+              subtitle={currentMangel.fields.status?.label}
+            />
+            <RecordSection title="Details" cols={2}>
+              <RecordField label="Status" value={currentMangel.fields.status} format="pill" />
+              <RecordField label="Frist" value={currentMangel.fields.frist} format="date" />
+              <RecordField label="Baustelle" value={currentMangel.baustelleName || '—'} />
+              <RecordField label="Beschreibung" value={currentMangel.fields.beschreibung} format="longtext" />
+            </RecordSection>
+            <RecordAttachments appId={APP_IDS.MANGEL} recordId={currentMangel.record_id} />
+          </>
+        )}
+      </RecordOverlay>
+
+      {/* Bericht detail overlay */}
+      <RecordOverlay
+        open={overlay.open && overlay.top?.type === 'bericht'}
+        onClose={overlay.close}
+        ariaLabel="Bericht"
+      >
+        {currentBericht && (
+          <>
+            <RecordHeader
+              title={currentBericht.fields.titel ?? 'Ohne Titel'}
+              subtitle={currentBericht.baustelleName}
+            />
+            <RecordSection title="Details" cols={2}>
+              <RecordField label="Datum" value={currentBericht.fields.datum} format="date" />
+              <RecordField label="Baustelle" value={currentBericht.baustelleName || '—'} />
+            </RecordSection>
+            <RecordAttachments appId={APP_IDS.BERICHT} recordId={currentBericht.record_id} />
+          </>
+        )}
+      </RecordOverlay>
+
+      {/* Baustelle detail overlay */}
+      <RecordOverlay
+        open={overlay.open && overlay.top?.type === 'baustelle'}
+        onClose={overlay.close}
+        ariaLabel="Baustelle"
+      >
+        {currentBaustelle && (
+          <>
+            <RecordHeader
+              title={currentBaustelle.fields.name ?? 'Ohne Name'}
+              subtitle={currentBaustelle.fields.status?.label}
+            />
+            <RecordSection title="Details" cols={2}>
+              <RecordField label="Status" value={currentBaustelle.fields.status} format="pill" />
+              <RecordField label="Adresse" value={currentBaustelle.fields.adresse} />
+              <RecordField label="Bauleiter" value={currentBaustelle.fields.bauleiter} />
+            </RecordSection>
+            <RecordAttachments appId={APP_IDS.BAUSTELLE} recordId={currentBaustelle.record_id} />
+          </>
+        )}
+      </RecordOverlay>
+
+      {/* Dialogs */}
+      <MangelDialog
+        open={mangelDialogOpen}
+        onClose={() => { setMangelDialogOpen(false); setEditMangel(null); setMangelDefaults(undefined); }}
+        onSubmit={async fields => {
+          if (editMangel) {
+            await LivingAppsService.updateMangelEntry(editMangel.record_id, fields);
+          } else {
+            await LivingAppsService.createMangelEntry(fields);
+          }
+          fetchAll();
+        }}
+        defaultValues={editMangel ? editMangel.fields : mangelDefaults}
+        recordId={editMangel?.record_id}
+        baustelleList={baustelle}
+        enablePhotoScan={AI_PHOTO_SCAN['Mangel']}
+        enablePhotoLocation={AI_PHOTO_LOCATION['Mangel']}
+      />
+
+      <BaustelleDialog
+        open={baustelleDialogOpen}
+        onClose={() => setBaustelleDialogOpen(false)}
+        onSubmit={async fields => {
+          await LivingAppsService.createBaustelleEntry(fields);
+          fetchAll();
+        }}
+        enablePhotoScan={AI_PHOTO_SCAN['Baustelle']}
+        enablePhotoLocation={AI_PHOTO_LOCATION['Baustelle']}
+      />
+
+      <BerichtDialog
+        open={berichtDialogOpen}
+        onClose={() => setBerichtDialogOpen(false)}
+        onSubmit={async fields => {
+          await LivingAppsService.createBerichtEntry(fields);
+          fetchAll();
+        }}
+        baustelleList={baustelle}
+        enablePhotoScan={AI_PHOTO_SCAN['Bericht']}
+        enablePhotoLocation={AI_PHOTO_LOCATION['Bericht']}
+      />
+    </>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-9 w-36" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+      </div>
+      <Skeleton className="h-64 rounded-2xl" />
+    </div>
+  );
+}
+
+function DashboardError({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const [repairing, setRepairing] = useState(false);
+  const [repairStatus, setRepairStatus] = useState('');
+  const [repairDone, setRepairDone] = useState(false);
+  const [repairFailed, setRepairFailed] = useState(false);
+
+  const handleRepair = async () => {
+    setRepairing(true);
+    setRepairStatus('Reparatur wird gestartet...');
+    setRepairFailed(false);
+
+    const errorContext = JSON.stringify({
+      type: 'data_loading',
+      message: error.message,
+      stack: (error.stack ?? '').split('\n').slice(0, 10).join('\n'),
+      url: window.location.href,
+    });
+
+    try {
+      const resp = await fetch(REPAIR_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ appgroup_id: APPGROUP_ID, error_context: errorContext }),
+      });
+
+      if (!resp.ok || !resp.body) {
+        setRepairing(false);
+        setRepairFailed(true);
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line.startsWith('data: ')) continue;
+          const content = line.slice(6);
+          if (content.startsWith('[STATUS]')) {
+            setRepairStatus(content.replace(/^\[STATUS]\s*/, ''));
+          }
+          if (content.startsWith('[DONE]')) {
+            setRepairDone(true);
+            setRepairing(false);
+          }
+          if (content.startsWith('[ERROR]') && !content.includes('Dashboard-Links')) {
+            setRepairFailed(true);
+          }
+        }
+      }
+    } catch {
+      setRepairing(false);
+      setRepairFailed(true);
+    }
+  };
+
+  if (repairDone) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center">
+          <IconCheck size={22} className="text-green-500" />
+        </div>
+        <div className="text-center">
+          <h3 className="font-semibold text-foreground mb-1">Dashboard repariert</h3>
+          <p className="text-sm text-muted-foreground max-w-xs">Das Problem wurde behoben. Bitte laden Sie die Seite neu.</p>
+        </div>
+        <Button size="sm" onClick={() => window.location.reload()}>
+          <IconRefresh size={14} className="mr-1" />Neu laden
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
+        <IconAlertCircle size={22} className="text-destructive" />
+      </div>
+      <div className="text-center">
+        <h3 className="font-semibold text-foreground mb-1">Fehler beim Laden</h3>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          {repairing ? repairStatus : error.message}
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={onRetry} disabled={repairing}>Erneut versuchen</Button>
+        <Button size="sm" onClick={handleRepair} disabled={repairing}>
+          {repairing
+            ? <span className="inline-block w-3.5 h-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-1" />
+            : <IconTool size={14} className="mr-1" />}
+          {repairing ? 'Reparatur läuft...' : 'Dashboard reparieren'}
+        </Button>
+      </div>
+      {repairFailed && <p className="text-sm text-destructive">Automatische Reparatur fehlgeschlagen. Bitte kontaktieren Sie den Support.</p>}
+    </div>
+  );
+}

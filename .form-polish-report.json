@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Baustelle": {
+      "placeholders_set": 4,
+      "defaults_keys": ["status"],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten-Entity ohne Datumsfelder, Preisfelder oder applookup-Relationen — nichts berechenbar. Status erhält Default-Wert 'In Planung'."
+    },
+    "Mangel": {
+      "placeholders_set": 5,
+      "defaults_keys": ["status", "frist"],
+      "computed_keys": [],
+      "reason": "Task-Entity mit Status-Pipeline (offen → in_bearbeitung → behoben) und Frist-Feld. Keine Numerik, keine applookup-Preis-Relationen — nichts berechenbar. Status Standard 'Offen', Frist defaultet auf +7 Tage."
+    },
+    "Bericht": {
+      "placeholders_set": 3,
+      "defaults_keys": ["datum"],
+      "computed_keys": [],
+      "reason": "Protokoll/Archiv-Entity mit Titel, Datum und Baustellen-Bezug. Keine Beschreibung, keine Numerik, keine Datumspaare — nichts berechenbar. Datum Standard heute."
+    }
+  }
+}

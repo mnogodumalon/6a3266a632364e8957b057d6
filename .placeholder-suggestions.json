@@ -1,0 +1,20 @@
+{
+  "BaustelleDialog.tsx": {
+    "name": "z. B. Einfamilienhaus Hauptstraße 12",
+    "adresse": "Straße, Hausnummer, PLZ Ort",
+    "bauleiter": "Vorname Nachname",
+    "status": "Wähle einen Status"
+  },
+  "MangelDialog.tsx": {
+    "titel": "z. B. Fenster erneuern",
+    "beschreibung": "Detaillierte Beschreibung des Mangels, Ursachen, notwendige Maßnahmen...",
+    "status": "Wähle einen Status",
+    "frist": "Bis wann muss behoben sein?",
+    "baustelle": "Welche Baustelle betroffen?"
+  },
+  "BerichtDialog.tsx": {
+    "titel": "z. B. Täglicher Arbeitsbericht",
+    "datum": "Welches Datum?",
+    "baustelle": "Zu welcher Baustelle?"
+  }
+}
